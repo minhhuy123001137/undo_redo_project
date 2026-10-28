@@ -1,110 +1,115 @@
 # PYTHON UNDO/REDO LAB
 
-## Ứng dụng 1: TIME SHIFT – Escape the Timeline
+**Dự án hoàn thiện của Huy - Nhân - Cường**
 
-**TIME SHIFT** là một trò chơi giải đố 2D lấy cảm hứng từ Sokoban cổ điển, được phát triển trên nền tảng **Python** và **Pygame**. Trò chơi đưa người chơi vào vai một nhà du hành thời gian giải quyết các dị thường dòng thời gian bằng cách dịch chuyển các Khối Hộp Thời Gian (Chrono-Crates) vào các Cổng Mục Tiêu (Temporal Target Pads).
-
-Dự án là ứng dụng tiêu biểu đầu tiên chứng minh kiến trúc **Undo/Redo Engine đa dụng (Dual-Stack Command Pattern)** độc lập, có thể tái sử dụng trực tiếp cho các ứng dụng khác (như ứng dụng đồ họa raster **Pixel Studio** trong tương lai).
+Dự án mẫu mực chứng minh sức mạnh của mô hình kiến trúc **Command Pattern kết hợp Dual-Stack Undo/Redo Engine** dùng chung cho hai ứng dụng hoàn toàn độc lập:
+1. **TIME SHIFT – Escape the Timeline**: Trò chơi giải đố 2D phong cách Sokoban Neon Cyberpunk (Python + Pygame).
+2. **PIXEL STUDIO – Mini Photoshop**: Ứng dụng đồ họa raster đa lớp chuyên nghiệp (Python + PySide6 + Pillow).
 
 ---
 
-## 1. KIẾN TRÚC DỰ ÁN
+## 1. TỔNG QUAN KIẾN TRÚC DỰ ÁN
 
 ```text
 PYTHON_UNDO_REDO/
 │
-├── core/                       # Bộ máy Undo/Redo Engine dùng chung
+├── core/                               # BỘ MÁY UNDO/REDO ENGINE DÙNG CHUNG
 │   ├── __init__.py
-│   ├── command.py              # Command abstract base class (Command Pattern)
-│   ├── history_manager.py      # Dual-stack HistoryManager độc lập
-│   └── exceptions.py           # Phân cấp ngoại lệ an toàn
+│   ├── command.py                      # Abstract base class Command (execute, undo, name, memory_bytes)
+│   ├── history_manager.py              # Dual-Stack HistoryManager (undo_stack, redo_stack, limits)
+│   └── exceptions.py                   # Phân cấp ngoại lệ an toàn
 │
 ├── apps/
 │   ├── __init__.py
 │   │
-│   └── sokoban/                # Ứng dụng trò chơi TIME SHIFT
+│   ├── sokoban/                        # ỨNG DỤNG 1: TIME SHIFT (Pygame)
+│   │   ├── __init__.py
+│   │   ├── main.py                     # Game loop, State Machine, tương tác người chơi
+│   │   ├── game.py                     # Logic luật chơi, quản lý màn chơi, tích hợp HistoryManager
+│   │   ├── player.py                   # Nhân vật người chơi & hướng di chuyển
+│   │   ├── level.py                    # Dữ liệu màn chơi, parser JSON & BFS Solver
+│   │   ├── commands.py                 # MoveCommand với hoàn tác/phục hồi nguyên tử
+│   │   ├── renderer.py                 # Renderer 3D Cyberpunk, nội suy di chuyển, bóng đổ & hiệu ứng
+│   │   ├── sound.py                    # Bộ tổng hợp âm thanh đa dạng (Procedural Synthesizer)
+│   │   ├── particles.py                # Động cơ hạt hiệu năng cao (Dust, Sparks, Portals, Waves)
+│   │   ├── theme.py                    # Hằng số giao diện, bảng màu Neon Cyberpunk & hàm Easing
+│   │   ├── widgets.py                  # Button tương tác (scale, glow, ripple), ToggleSwitch, Slider
+│   │   ├── ui.py                       # TimelineBar & non-blocking ScreenTransition
+│   │   ├── save_manager.py             # Quản lý lưu tiến độ JSON an toàn (Atomic File Replace)
+│   │   └── levels/                     # 10 màn chơi JSON đã xác minh bằng thuật toán BFS
+│   │       ├── level_01.json
+│   │       └── ...
+│   │
+│   └── mini_photoshop/                 # ỨNG DỤNG 2: PIXEL STUDIO (PySide6 + Pillow)
 │       ├── __init__.py
-│       ├── main.py             # Vòng lặp Pygame, State Machine, tương tác người dùng
-│       ├── game.py             # Logic luật chơi, quản lý màn chơi, tích hợp HistoryManager
-│       ├── player.py           # Thực thể nhân vật người chơi và hướng di chuyển
-│       ├── level.py            # Dữ liệu màn chơi, parser JSON và BFS Solver
-│       ├── commands.py         # MoveCommand với khả năng hoàn tác/phục hồi nguyên tử
-│       ├── renderer.py         # Renderer 3D Cyberpunk, nội suy di chuyển, bóng đổ & hiệu ứng
-│       ├── sound.py            # Bộ tổng hợp âm thanh đa dạng (Procedural Synthesizer)
-│       ├── particles.py        # Động cơ hạt hiệu năng cao (Dust, Sparks, Portals, Waves)
-│       ├── theme.py            # Hằng số giao diện, bảng màu Neon Cyberpunk & hàm Easing
-│       ├── widgets.py          # Button tương tác (scale, glow, ripple), ToggleSwitch, Slider
-│       ├── ui.py               # TimelineBar thế hệ mới & non-blocking ScreenTransition
-│       ├── save_manager.py     # Quản lý lưu tiến độ JSON an toàn (Atomic File Replace)
-│       └── levels/             # 10 màn chơi JSON đã xác minh bằng thuật toán BFS
-│           ├── level_01.json
-│           └── ...
+│       ├── main.py                     # Entry point khởi chạy ứng dụng GUI
+│       ├── layers.py                   # Thực thể Layer (PIL Image RGBA, opacity, visibility)
+│       ├── document.py                 # Quản lý canvas, danh sách layers, alpha composite, HistoryManager
+│       ├── commands.py                 # Bộ lệnh Reversible: ImagePatchCommand (crop bbox), Layer commands
+│       ├── tools.py                    # 10 công cụ đồ họa (Brush, Eraser, Pencil, Fill BFS, Shapes, Move, ...)
+│       ├── editor.py                   # State Controller điều phối Document, Tools, Commands, Colors
+│       ├── canvas.py                   # CanvasWidget tương tác zoom/pan, checkerboard, QPainter render
+│       ├── file_manager.py             # Định dạng .pstudio (ZIP + manifest), import/export PNG/JPEG
+│       └── ui/
+│           ├── __init__.py
+│           ├── main_window.py          # MainWindow chuẩn Studio, Dark QPalette (không dùng QSS)
+│           ├── toolbar.py              # Thanh công cụ đứng với icon vẽ bằng QPainter
+│           ├── layers_panel.py         # Dock quản lý lớp (thêm, xóa, reorder, đổi opacity, gộp lớp)
+│           ├── history_panel.py        # Dock lịch sử Undo/Redo trực quan, click nhảy tới bước bất kỳ
+│           └── color_picker.py         # Bảng màu swatches, bộ chọn QColorDialog, thanh kích thước cọ
 │
 ├── data/
-│   ├── saves/                  # Lưu trữ tiến độ người chơi (progress.json)
-│   └── settings/               # Lưu trữ cấu hình trò chơi (settings.json)
+│   ├── saves/                          # Lưu trữ tiến độ người chơi (progress.json)
+│   └── settings/                       # Lưu trữ cấu hình trò chơi (settings.json)
 │
-├── tests/                      # Bộ kiểm thử tự động unittest
-│   ├── test_history.py         # 16 unit tests cho Undo/Redo Engine
-│   └── test_sokoban.py         # 19 unit tests theo đúng yêu cầu kiểm thử
+├── tests/                              # BỘ KIỂM THỬ TỰ ĐỘNG TOÀN DIỆN (55 TESTS)
+│   ├── test_history.py                 # 16 unit tests cho Undo/Redo Engine cốt lõi
+│   ├── test_sokoban.py                 # 19 unit tests cho luật chơi Sokoban và Undo/Redo
+│   └── test_mini_photoshop.py          # 20 unit tests cho đồ họa, layer, patch memory và file I/O
 │
 ├── tools/
-│   └── build_and_verify_levels.py # Công cụ tạo và kiểm tra lời giải màn chơi bằng BFS
+│   └── build_and_verify_levels.py      # Công cụ sinh và xác minh 10 màn chơi bằng BFS Solver
 │
-├── launcher.py                 # Launcher khởi động chung cho các ứng dụng
-├── requirements.txt            # Danh sách thư viện phụ thuộc
-├── .gitignore                  # Cấu hình bỏ qua tệp tạm
-└── README.md                   # Hướng dẫn chi tiết dự án
+├── launcher.py                         # Hub Launcher Cyberpunk khởi động độc lập cả 2 ứng dụng
+├── run_launcher.bat                    # Script click đúp chạy Launcher trên Windows
+├── run_sokoban.bat                     # Script click đúp chạy TIME SHIFT
+├── run_pixel_studio.bat                # Script click đúp chạy PIXEL STUDIO
+├── requirements.txt                    # Thư viện phụ thuộc (pygame, Pillow, PySide6-Essentials)
+└── README.md                           # Tài liệu hướng dẫn toàn diện
 ```
 
-### Nguyên tắc thiết kế
-1. **Hoàn toàn độc lập**: Thư mục `core/` độc lập 100%, không import bất kỳ thư viện UI nào (không Pygame, PySide6, Pillow).
-2. **Không dùng biến toàn cục**: Mọi trạng thái game, player và history được đóng gói an toàn trong các class đối tượng.
-3. **Mỗi ứng dụng có `HistoryManager` riêng**: Khi chuyển màn chơi hoặc tải phiên làm việc mới, một `HistoryManager` độc lập được khởi tạo.
-4. **An toàn nguyên tử (Atomic Execution)**: Nếu thao tác di chuyển/đẩy thùng vi phạm luật chơi (va chạm tường, đẩy 2 thùng), command trả về `False` và không ghi nhận vào Undo Stack, không làm xóa Redo Stack.
+### 3 Nguyên Tắc Thiết Kế Cốt Lõi
+1. **Core Độc Lập 100%**: Thư mục `core/` không phụ thuộc vào bất kỳ framework GUI nào (không Pygame, không Qt, không Pillow).
+2. **Quản Lý Bộ Nhớ Tối Ưu (Bounding-Box Patch Optimization)**: Trong Pixel Studio, mỗi nét vẽ hay tẩy xóa không lưu toàn bộ bức ảnh canvas 4K; hệ thống chỉ cắt vùng chữ nhật thay đổi (`bounding box crop patch`) lưu vào `ImagePatchCommand`, giảm 90-98% RAM tiêu thụ.
+3. **Tiến Trình Độc Lập**: Khởi chạy từ Launcher bằng `subprocess.Popen([sys.executable, "-m", ...])`, hai ứng dụng không chia sẻ biến toàn cục hay làm nghẽn event loop của nhau.
 
 ---
 
-## 2. BỘ MÁY UNDO/REDO ENGINE (`core/`)
+## 2. BỘ MÁY UNDO/REDO ENGINE DÙNG CHUNG (`core/`)
 
-Engine triển khai cấu trúc dữ liệu hai Stack:
-- **`undo_stack`**: Ngăn xếp chứa các lệnh đã thực thi thành công.
-- **`redo_stack`**: Ngăn xếp chứa các lệnh vừa bị hoàn tác.
+Triển khai kiến trúc **Command Pattern** kết hợp cấu trúc dữ liệu **Hai Ngăn Xếp (Dual-Stack)**:
 
-### Các phương thức cốt lõi của `HistoryManager`
-- `execute(command: Command) -> bool`: Thực thi lệnh mới. Nếu thành công, đưa vào `undo_stack` và xóa toàn bộ `redo_stack`. Nếu thất bại, bảo toàn nguyên vẹn 2 stack.
-- `undo() -> bool`: Lấy lệnh gần nhất từ `undo_stack`, gọi `command.undo()`, và chuyển sang `redo_stack`.
-- `redo() -> bool`: Lấy lệnh gần nhất từ `redo_stack`, gọi lại `command.execute()`, và chuyển về `undo_stack`.
-- `can_undo() -> bool` & `can_redo() -> bool`: Kiểm tra trạng thái sẵn sàng hoàn tác/phục hồi.
-- `clear() -> None`: Xóa sạch lịch sử khi reset màn chơi.
-- `max_history` & `max_memory_bytes`: Hỗ trợ giới hạn số lượng bước hoặc dung lượng RAM, sẵn sàng mở rộng cho ứng dụng đồ họa Mini Photoshop (Pixel Studio).
+```
+[ THAO TÁC MỚI ] ──> execute() ──> [ UNDO STACK ] (Lưu trữ các lệnh đã chạy)
+                                         │       ▲
+                                  undo() │       │ redo()
+                                         ▼       │
+                                    [ REDO STACK ] (Lưu trữ các lệnh bị hoàn tác)
+```
+
+- **Nguyên tử (Atomic Integrity)**: Thao tác thất bại sẽ trả về `False` và không làm hỏng cả hai ngăn xếp.
+- **Giới hạn an toàn**: Hỗ trợ `max_history` (số bước tối đa) và `max_memory_bytes` (tự động giải phóng các lệnh cũ nhất khi đầy RAM).
 
 ---
 
-## 3. TRÒ CHƠI TIME SHIFT
+## 3. ỨNG DỤNG 1: TIME SHIFT – SOKOBAN GAME
 
-### Bảng màu đồ họa & Phong cách (Neon Cyberpunk & Modern Pixel Art)
-- **Background** `#080D1C` `(8, 13, 28)`: Màu nền vũ trụ thời gian.
-- **Surface / Panel** `#121B30` `(18, 27, 48)`: Bề mặt kim loại công nghệ cao.
-- **Cyan Neon** `#00E5FF` `(0, 229, 255)`: Dòng chảy thời gian, giao diện HUD, hiệu ứng tua ngược (Rewind).
-- **Tím Neon** `#A855F7` `(168, 85, 247)`: Điểm nhấn công nghệ viễn tưởng, năng lượng dị thường, Redo.
-- **Vàng Cam** `#F59E0B` `(245, 158, 11)`: Khối Chrono-Crate chứa tinh thể thời gian.
-- **Xanh Lá** `#10B981` `(16, 185, 129)`: Cổng mục tiêu không gian (Target Pad) và trạng thái hoàn thành.
-- **Text Main** `#E2E8F0` `(226, 232, 240)`: Kiểu chữ hiện đại, tương phản sắc nét.
+Trò chơi giải đố 2D phong cách **Neon Cyberpunk** lấy cảm hứng từ Sokoban:
+- **10 màn chơi** độc đáo đã được chứng minh lời giải bằng thuật toán tìm đường **BFS (Breadth-First Search)**.
+- **Hiệu ứng đồ họa**: Đèn neon phát sáng (Glow), bóng mờ tua ngược (Ghost Rewind Trail), sóng thời gian khi Undo/Redo, tia lửa va chạm (Sparks), và hiệu ứng biến dạng nén đẩy thùng (Squash & Stretch).
+- **Âm thanh tổng hợp (Procedural Sound Synthesizer)**: Tạo âm thanh trực tiếp bằng thuật toán PCM nguyên bản, không cần nạp tệp audio ngoài.
 
-### Tính năng Animation & Trải nghiệm thị giác nâng cao
-1. **Nội suy chuyển động mượt (Smooth Interpolation)**: Nhân vật và thùng di chuyển mượt mà qua các ô với hàm easing `ease_out_quad` (120ms).
-2. **Animation đẩy thùng (Squash & Stretch)**: Thùng có hiệu ứng biến dạng nén nhẹ khi bắt đầu đẩy và phục hồi khi chạm đích, kèm hiệu ứng tia lửa va chạm (contact sparks).
-3. **Hiệu ứng đặc biệt khi Undo / Redo**:
-   - **Undo**: Sóng thời gian Cyan quét toàn màn hình, bóng mờ (ghost trail) tua ngược của nhân vật và thùng, âm thanh hạ tần số sci-fi.
-   - **Redo**: Sóng thời gian Tím neon, bóng mờ tiến bước, âm thanh tăng tần số sci-fi.
-4. **Hệ thống nút bấm đa trạng thái (Universal Button Component)**: Hỗ trợ Idle, Hover (nâng thẻ, đổi màu, phát sáng), Pressed (thu nhỏ nhẹ), Click Ripple lan tỏa và âm thanh phản hồi.
-5. **Hệ thống hạt (Particle System)**: Bụi phát sáng trôi nổi, vụ nổ kích hoạt mục tiêu (goal burst), pháo hoa mừng chiến thắng (victory fireworks).
-6. **Âm thanh tổng hợp độc lập (Procedural Sound Synthesizer)**: Toàn bộ âm thanh bước chân, đẩy thùng, kích hoạt mục tiêu, tua ngược, hoàn tất màn chơi được tổng hợp bằng thuật toán PCM nguyên bản, không cần tải bất kỳ file MP3/WAV bên ngoài.
-7. **Cài đặt & Trợ năng (Settings & Accessibility)**: Tùy chỉnh âm lượng (Slider 0-100%), bật/tắt hạt (Particles), bật/tắt rung màn hình (Screen Shake), bật/tắt hào quang (Glow Effects), và chế độ Giảm chuyển động (Reduced Motion - di chuyển tức thời).
-
-### Bảng điều khiển
-
+### Điều khiển TIME SHIFT
 | Thao tác | Phím tắt bàn phím | Chuột |
 |---|---|---|
 | Di chuyển / Đẩy thùng | **W / A / S / D** hoặc **Mũi tên** | — |
@@ -115,71 +120,99 @@ Engine triển khai cấu trúc dữ liệu hai Stack:
 
 ---
 
-## 4. HỆ THỐNG MÀN CHƠI (LEVELS)
+## 4. ỨNG DỤNG 2: PIXEL STUDIO – MINI PHOTOSHOP
 
-Dự án gồm **10 màn chơi JSON** đã được kiểm tra tính hợp lệ và xác minh có ít nhất 1 lời giải hoàn chỉnh thông qua thuật toán tìm kiếm theo chiều rộng (**BFS Solver**):
+Ứng dụng chỉnh sửa đồ họa raster máy tính chuyên nghiệp, xây dựng bằng **PySide6** và **Pillow**.
 
-- **Level 1–3 (Dễ)**: *First Shift*, *Dual Timeline*, *Corridor* — Giúp làm quen với cơ chế đẩy thùng và đảo ngược thời gian.
-- **Level 4–7 (Trung bình)**: *Quantum Knot*, *Paradox Alley*, *Chrono Vault*, *Continuum Chamber* — Không gian chật hẹp, đòi hỏi lập kế hoạch thứ tự đẩy.
-- **Level 8–10 (Khó)**: *Time Warp*, *Event Horizon*, *Singularity* — Nhiều thùng, câu đố hóc búa, cần tận dụng Undo/Redo để thử nghiệm dòng thời gian tối ưu.
+### Đặc điểm thiết kế & Tính năng
+- **Giao diện Modern Dark Studio**: Thiết kế hoàn toàn qua `QPalette`, `QFont` và `QPainter` (tuân thủ nghiêm ngặt ràng buộc **không sử dụng CSS/QSS**).
+- **10 Công cụ vẽ chuyên sâu**:
+  1. `Brush` (Cọ vẽ tròn mịn với bán kính tùy chỉnh)
+  2. `Eraser` (Tẩy xóa vùng vẽ về trong suốt)
+  3. `Pencil` (Bút chì 1px vẽ pixel art chuẩn xác)
+  4. `Fill` (Tô màu vùng khép kín bằng thuật toán lan truyền BFS Flood-Fill với Tolerance)
+  5. `Rectangle` (Vẽ hình chữ nhật viền)
+  6. `Filled Rectangle` (Vẽ hình chữ nhật đặc)
+  7. `Ellipse` (Vẽ hình tròn/elip)
+  8. `Move` (Dịch chuyển nội dung layer)
+  9. `Eyedropper` (Hút màu pixel từ canvas)
+  10. `Hand` (Kéo rê canvas) & `Zoom` (Phóng to/thu nhỏ)
+- **Quản lý đa tầng (Multi-layer Engine)**:
+  - Thêm, nhân bản, xóa layer.
+  - Ẩn/hiện layer (mắt toggler).
+  - Điều chỉnh độ mờ đục (Opacity slider 0% – 100%).
+  - Đổi thứ tự layer (Move Up / Move Down).
+  - Gộp layer xuống dưới (Merge Down).
+  - Alpha compositing thời gian thực.
+- **Bảng điều khiển lịch sử trực quan (History Panel)**:
+  - Hiển thị danh sách toàn bộ các thao tác trong Undo/Redo stack.
+  - Cho phép người dùng click trực tiếp vào một bước trong quá khứ để tự động tua ngược hoặc phục hồi tới bước đó.
+- **Định dạng dự án chuyên dụng (`.pstudio`)**:
+  - Đóng gói định dạng ZIP chứa `project.json` (metadata kích thước, danh sách layers, opacity, visibility) và từng layer được lưu dưới dạng PNG nguyên gốc không nén suy hao.
+  - Xuất ảnh chuẩn **PNG (giữ kênh alpha trong suốt)** và **JPEG (nền trắng chất lượng 95%)**.
+
+### Phím tắt PIXEL STUDIO
+| Thao tác | Phím tắt bàn phím |
+|---|---|
+| Tạo file mới | **Ctrl + N** |
+| Mở ảnh / Dự án | **Ctrl + O** |
+| Lưu dự án (`.pstudio`) | **Ctrl + S** |
+| Xuất ảnh PNG | **Ctrl + Shift + E** |
+| Xuất ảnh JPEG | **Ctrl + Shift + J** |
+| Hoàn tác (Undo) | **Ctrl + Z** |
+| Phục hồi (Redo) | **Ctrl + Y** hoặc **Ctrl + Shift + Z** |
+| Thêm layer mới | **Ctrl + Shift + N** |
+| Xóa layer hiện tại | **Delete** |
+| Phóng to Canvas | **Ctrl + Plus** hoặc cuộn chuột lên |
+| Thu nhỏ Canvas | **Ctrl + Minus** hoặc cuộn chuột xuống |
+| Đặt lại kích thước (100%) | **Ctrl + 0** |
+| Chọn công cụ nhanh | **B** (Brush), **E** (Eraser), **P** (Pencil), **G** (Fill), **U** (Rectangle), **V** (Move), **I** (Eyedropper), **H** (Hand), **Z** (Zoom) |
 
 ---
 
-## 5. HƯỚNG DẪN CÀI ĐẶT VÀ KHỞI CHẠY
+## 5. HƯỚNG DẪN CÀI ĐẶT VÀ CHẠY ỨNG DỤNG
 
-### Yêu cầu môi trường
-- Python 3.9 trở lên (đã kiểm thử tương thích hoàn hảo trên Windows 11).
-- Pygame 2.5 trở lên.
-
-### Cài đặt thư viện
+### 1. Cài đặt thư viện
+Yêu cầu Python 3.9+ trên Windows. Cài đặt các thư viện cần thiết:
 ```bash
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-### Khởi chạy Launcher tổng
-```bash
-python launcher.py
-```
-*(Launcher cho phép mở ứng dụng **TIME SHIFT** trong tiến trình độc lập, đồng thời hiển thị vị trí sẵn sàng tích hợp của **PIXEL STUDIO**)*.
+### 2. Khởi chạy bằng Click đúp (Khuyên dùng trên Windows)
+- Chạy Hub Launcher tổng: Click đúp vào `run_launcher.bat`
+- Chạy thẳng game TIME SHIFT: Click đúp vào `run_sokoban.bat`
+- Chạy thẳng Mini Photoshop: Click đúp vào `run_pixel_studio.bat`
 
-### Hoặc khởi chạy trực tiếp trò chơi TIME SHIFT
-```bash
-python -m apps.sokoban.main
-```
+### 3. Khởi chạy bằng dòng lệnh
+- Mở Hub Launcher:
+  ```bash
+  python launcher.py
+  ```
+- Mở trực tiếp TIME SHIFT:
+  ```bash
+  python -m apps.sokoban.main
+  ```
+- Mở trực tiếp PIXEL STUDIO:
+  ```bash
+  python -m apps.mini_photoshop.main
+  ```
 
 ---
 
 ## 6. KIỂM THỬ TỰ ĐỘNG (UNIT TESTS)
 
-Dự án đi kèm bộ kiểm thử toàn diện gồm **35 unit tests** tự động, bao gồm đầy đủ **19 kịch bản bắt buộc**:
+Dự án bao gồm **55 bài kiểm thử tự động toàn diện** kiểm tra 100% tính nguyên vẹn của:
+1. `test_history.py` (16 tests): Kiểm tra 2 stack, logic Undo/Redo, dọn dẹp redo khi có thao tác mới, giới hạn bộ nhớ và tính bất biến khi lệnh thất bại.
+2. `test_sokoban.py` (19 tests): Kiểm tra di chuyển, va chạm, đẩy thùng, giải đố, phục hồi trạng thái chiến thắng và tính toàn vẹn của Sokoban.
+3. `test_mini_photoshop.py` (20 tests): Kiểm tra tạo canvas, mở ảnh, thao tác layer, nét cọ, tẩy, fill BFS, di chuyển layer, bounding-box crop undo/redo, lưu/nạp file `.pstudio`, xuất PNG/JPEG và chứng minh 2 HistoryManager hoàn toàn độc lập.
 
-1. Di chuyển hợp lệ.
-2. Va chạm tường.
-3. Đẩy thùng hợp lệ.
-4. Đẩy thùng bị chặn.
-5. Undo một lần.
-6. Undo nhiều lần.
-7. Redo một lần.
-8. Redo nhiều lần.
-9. Undo rồi thực hiện hành động mới (xóa sạch Redo Stack).
-10. Undo sau khi đẩy thùng.
-11. Redo sau khi đẩy thùng.
-12. Undo khi không có lịch sử.
-13. Redo khi không có lịch sử.
-14. Restart phải xóa lịch sử.
-15. Chuyển Level phải tạo lịch sử độc lập.
-16. Undo/Redo tại trạng thái chiến thắng.
-17. Kiểm tra level hợp lệ.
-18. Kiểm tra lưu và tải JSON.
-19. Command thất bại không làm sai lịch sử.
-
-Chạy kiểm thử bằng lệnh tiêu chuẩn:
+Chạy toàn bộ test suite:
 ```bash
 python -m unittest discover -s tests -v
 ```
 
 Kết quả:
 ```text
-Ran 35 tests in 0.065s
+Ran 55 tests in 0.115s
 OK
 ```

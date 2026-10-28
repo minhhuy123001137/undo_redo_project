@@ -251,6 +251,10 @@ class Launcher:
         self.global_time = 0.0
         self.particles: List[LauncherParticle] = []
         self.launch_flash_timer = 0.0
+        self.last_sokoban_time: float = 0.0
+        self.last_photoshop_time: float = 0.0
+        self.status_msg: str = ""
+        self.status_timer: float = 0.0
 
         card_w = 580
         card_h = 82
@@ -269,10 +273,10 @@ class Launcher:
         self.card_photoshop = AppCard(
             pygame.Rect(cx, 315, card_w, card_h),
             "2. PIXEL STUDIO – Mini Photoshop",
-            "Layered Raster Image Editor • (Future application in Phase 2)",
-            on_click=None,
-            enabled=False,
-            badge="COMING SOON",
+            "Layered Raster Image Editor • Reversible drawing, layers & history",
+            on_click=self.launch_pixel_studio,
+            enabled=True,
+            badge="LAUNCH STUDIO ►",
             theme="purple",
         )
 
@@ -290,10 +294,41 @@ class Launcher:
 
     def launch_sokoban(self) -> None:
         """Launch Sokoban in an independent subprocess using sys.executable."""
-        self.launch_flash_timer = 0.35
-        project_root = Path(__file__).resolve().parent
-        cmd = [sys.executable, "-m", "apps.sokoban.main"]
-        subprocess.Popen(cmd, cwd=str(project_root))
+        import time
+        now = time.time()
+        if now - self.last_sokoban_time < 1.2:
+            return  # Debounce rapid double clicks
+        self.last_sokoban_time = now
+
+        try:
+            self.launch_flash_timer = 0.35
+            project_root = Path(__file__).resolve().parent
+            cmd = [sys.executable, "-m", "apps.sokoban.main"]
+            subprocess.Popen(cmd, cwd=str(project_root))
+            self.status_msg = "Launched TIME SHIFT"
+            self.status_timer = 2.5
+        except Exception as exc:
+            self.status_msg = f"Failed to launch TIME SHIFT: {exc}"
+            self.status_timer = 4.0
+
+    def launch_pixel_studio(self) -> None:
+        """Launch Pixel Studio in an independent subprocess using sys.executable."""
+        import time
+        now = time.time()
+        if now - self.last_photoshop_time < 1.2:
+            return  # Debounce rapid double clicks
+        self.last_photoshop_time = now
+
+        try:
+            self.launch_flash_timer = 0.35
+            project_root = Path(__file__).resolve().parent
+            cmd = [sys.executable, "-m", "apps.mini_photoshop.main"]
+            subprocess.Popen(cmd, cwd=str(project_root))
+            self.status_msg = "Launched PIXEL STUDIO"
+            self.status_timer = 2.5
+        except Exception as exc:
+            self.status_msg = f"Failed to launch PIXEL STUDIO: {exc}"
+            self.status_timer = 4.0
 
     def quit(self) -> None:
         self.running = False
@@ -327,6 +362,11 @@ class Launcher:
 
             if self.launch_flash_timer > 0:
                 self.launch_flash_timer = max(0.0, self.launch_flash_timer - dt)
+
+            if self.status_timer > 0:
+                self.status_timer = max(0.0, self.status_timer - dt)
+                if self.status_timer <= 0:
+                    self.status_msg = ""
 
             self._draw()
 
@@ -378,7 +418,11 @@ class Launcher:
         for card in self.cards:
             card.draw(self.screen, self.font_card_title, self.font_card_sub, self.font_badge)
 
-        # 6. Footer
+        # 6. Status Toast & Footer
+        if self.status_msg:
+            status_surf = self.font_card_sub.render(self.status_msg, True, COLOR_CYAN)
+            self.screen.blit(status_surf, status_surf.get_rect(center=(WIDTH // 2, HEIGHT - 62)))
+
         foot_str = "Independent Subprocess Execution • Powered by core/history_manager.py"
         foot_surf = self.font_footer.render(foot_str, True, (80, 95, 125))
         self.screen.blit(foot_surf, foot_surf.get_rect(center=(WIDTH // 2, HEIGHT - 35)))
