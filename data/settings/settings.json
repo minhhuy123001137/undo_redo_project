@@ -1,0 +1,8 @@
+{
+  "music_volume": 0.7,
+  "sfx_volume": 0.5,
+  "screen_shake": false,
+  "particles": false,
+  "glow_effects": false,
+  "reduced_motion": true
+}
